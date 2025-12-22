@@ -2,24 +2,35 @@ package services;
 
 import javafx.application.Platform;
 import javafx.beans.property.*;
+import models.SessionType;
+import models.SessionConfiguration;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 
 public class TimerService {
-    private static final int WORK_DURATION_MINUTES = 25;
-    private static final int BREAK_DURATION_MINUTES = 5;
+    private SessionConfiguration sessionConfiguration;
+    private SessionType currentSessionType;
 
-    private final IntegerProperty remainingSeconds = new SimpleIntegerProperty(WORK_DURATION_MINUTES * 60);
+    private final IntegerProperty remainingSeconds = new SimpleIntegerProperty(25 * 60);
     private final BooleanProperty isRunning = new SimpleBooleanProperty(false);
     private final BooleanProperty isBreak = new SimpleBooleanProperty(false);
-    private final StringProperty timeDisplay = new SimpleStringProperty(formatTime(WORK_DURATION_MINUTES * 60));
+    private final StringProperty timeDisplay = new SimpleStringProperty(formatTime(25 * 60));
 
     private Thread timerThread;
     private LocalDateTime startTime;
     private Runnable onSessionComplete;
 
     public TimerService() {
+        this(SessionType.WORK);
+    }
+
+    public TimerService(SessionType sessionType) {
+        this.currentSessionType = sessionType;
+        this.sessionConfiguration = new SessionConfiguration(sessionType);
+        remainingSeconds.set(sessionConfiguration.getWorkDurationMinutes() * 60);
+        timeDisplay.set(formatTime(sessionConfiguration.getWorkDurationMinutes() * 60));
+
         remainingSeconds.addListener((obs, oldVal, newVal) -> {
             Platform.runLater(() -> timeDisplay.set(formatTime(newVal.intValue())));
         });
@@ -44,20 +55,20 @@ public class TimerService {
 
     public void reset() {
         pause();
-        int duration = isBreak.get() ? BREAK_DURATION_MINUTES : WORK_DURATION_MINUTES;
+        int duration = isBreak.get() ? sessionConfiguration.getBreakDurationMinutes() : sessionConfiguration.getWorkDurationMinutes();
         remainingSeconds.set(duration * 60);
     }
 
     public void switchToBreak() {
         pause();
         isBreak.set(true);
-        remainingSeconds.set(BREAK_DURATION_MINUTES * 60);
+        remainingSeconds.set(sessionConfiguration.getBreakDurationMinutes() * 60);
     }
 
     public void switchToWork() {
         pause();
         isBreak.set(false);
-        remainingSeconds.set(WORK_DURATION_MINUTES * 60);
+        remainingSeconds.set(sessionConfiguration.getWorkDurationMinutes() * 60);
     }
 
     private void runTimer() {
@@ -89,11 +100,34 @@ public class TimerService {
     }
 
     public int getWorkDurationMinutes() {
-        return WORK_DURATION_MINUTES;
+        return sessionConfiguration.getWorkDurationMinutes();
     }
 
     public int getBreakDurationMinutes() {
-        return BREAK_DURATION_MINUTES;
+        return sessionConfiguration.getBreakDurationMinutes();
+    }
+
+    // NEW: Session type management
+    public SessionType getCurrentSessionType() {
+        return currentSessionType;
+    }
+
+    public void setSessionType(SessionType sessionType) {
+        pause();
+        this.currentSessionType = sessionType;
+        this.sessionConfiguration = new SessionConfiguration(sessionType);
+        reset();
+    }
+
+    public SessionConfiguration getSessionConfiguration() {
+        return sessionConfiguration;
+    }
+
+    public void setSessionConfiguration(SessionConfiguration sessionConfiguration) {
+        pause();
+        this.sessionConfiguration = sessionConfiguration;
+        this.currentSessionType = sessionConfiguration.getSessionType();
+        reset();
     }
 
     public int getElapsedMinutes() {

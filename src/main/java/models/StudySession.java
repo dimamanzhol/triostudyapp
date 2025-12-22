@@ -10,10 +10,13 @@ public class StudySession {
     private int durationMinutes;
     private String subject;
     private String notes;
+    private SessionType sessionType; // NEW: Callout type (WORK or STUDY)
+    private String projectName; // NEW: Project or category name
 
     public StudySession() {
         this.id = java.util.UUID.randomUUID().toString();
         this.startTime = LocalDateTime.now();
+        this.sessionType = SessionType.WORK; // Default to WORK
     }
 
     public StudySession(int durationMinutes, String subject) {
@@ -23,12 +26,30 @@ public class StudySession {
         this.endTime = startTime.plusMinutes(durationMinutes);
     }
 
+    public StudySession(int durationMinutes, String subject, SessionType sessionType) {
+        this();
+        this.durationMinutes = durationMinutes;
+        this.subject = subject;
+        this.sessionType = sessionType;
+        this.endTime = startTime.plusMinutes(durationMinutes);
+    }
+
     public StudySession(LocalDateTime startTime, LocalDateTime endTime, String subject, String notes) {
         this();
         this.startTime = startTime;
         this.endTime = endTime;
         this.subject = subject;
         this.notes = notes;
+        this.durationMinutes = (int) java.time.Duration.between(startTime, endTime).toMinutes();
+    }
+
+    public StudySession(LocalDateTime startTime, LocalDateTime endTime, String subject, String notes, SessionType sessionType) {
+        this();
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.subject = subject;
+        this.notes = notes;
+        this.sessionType = sessionType;
         this.durationMinutes = (int) java.time.Duration.between(startTime, endTime).toMinutes();
     }
 
@@ -81,6 +102,22 @@ public class StudySession {
         this.notes = notes;
     }
 
+    public SessionType getSessionType() {
+        return sessionType;
+    }
+
+    public void setSessionType(SessionType sessionType) {
+        this.sessionType = sessionType;
+    }
+
+    public String getProjectName() {
+        return projectName;
+    }
+
+    public void setProjectName(String projectName) {
+        this.projectName = projectName;
+    }
+
     public String getFormattedDate() {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         return startTime.format(formatter);
@@ -99,9 +136,14 @@ public class StudySession {
 
     @Override
     public String toString() {
-        return String.format("%s - %s (%s)",
+        String sessionTypeLabel = sessionType != null ? sessionType.getFullLabel() : "Work";
+        String subjectLabel = subject != null ? subject : (sessionType == SessionType.WORK ? "Work Session" : "Study Session");
+        String projectLabel = projectName != null && !projectName.isEmpty() ? " [" + projectName + "]" : "";
+
+        return String.format("%s - %s%s (%s)",
             getFormattedDate(),
-            subject != null ? subject : "Study Session",
+            sessionTypeLabel + " " + subjectLabel,
+            projectLabel,
             getDurationFormatted());
     }
 }

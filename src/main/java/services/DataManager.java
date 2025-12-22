@@ -2,6 +2,7 @@ package services;
 
 import models.StudySession;
 import models.Task;
+import models.SessionType;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -68,6 +69,12 @@ public class DataManager {
                 task.setDescription(jsonTask.optString("description", ""));
                 task.setCompleted(jsonTask.getBoolean("completed"));
                 task.setCreatedAt(LocalDateTime.parse(jsonTask.getString("createdAt")));
+
+                // Handle time tracking properties
+                task.setActive(jsonTask.optBoolean("active", false));
+                task.setTotalTimeSpent(jsonTask.optInt("totalTimeSpent", 0));
+                task.setEstimatedTime(jsonTask.optInt("estimatedTime", 0));
+
                 tasks.add(task);
             }
         } catch (Exception e) {
@@ -84,6 +91,12 @@ public class DataManager {
             jsonTask.put("description", task.getDescription());
             jsonTask.put("completed", task.isCompleted());
             jsonTask.put("createdAt", task.getCreatedAt().toString());
+
+            // Save time tracking properties
+            jsonTask.put("active", task.isActive());
+            jsonTask.put("totalTimeSpent", task.getTotalTimeSpent());
+            jsonTask.put("estimatedTime", task.getEstimatedTime());
+
             jsonArray.put(jsonTask);
         }
 
@@ -113,6 +126,17 @@ public class DataManager {
                 session.setEndTime(LocalDateTime.parse(jsonSession.getString("endTime")));
                 session.setSubject(jsonSession.optString("subject", ""));
                 session.setNotes(jsonSession.optString("notes", ""));
+
+                // Handle session type and project name (new fields)
+                String sessionTypeStr = jsonSession.optString("sessionType", "WORK");
+                try {
+                    session.setSessionType(SessionType.valueOf(sessionTypeStr));
+                } catch (IllegalArgumentException e) {
+                    session.setSessionType(SessionType.WORK); // Default fallback
+                }
+
+                session.setProjectName(jsonSession.optString("projectName", ""));
+
                 studySessions.add(session);
             }
         } catch (Exception e) {
@@ -129,6 +153,15 @@ public class DataManager {
             jsonSession.put("endTime", session.getEndTime().toString());
             jsonSession.put("subject", session.getSubject());
             jsonSession.put("notes", session.getNotes());
+
+            // Save new fields for session type and project name
+            if (session.getSessionType() != null) {
+                jsonSession.put("sessionType", session.getSessionType().toString());
+            }
+            if (session.getProjectName() != null) {
+                jsonSession.put("projectName", session.getProjectName());
+            }
+
             jsonArray.put(jsonSession);
         }
 
