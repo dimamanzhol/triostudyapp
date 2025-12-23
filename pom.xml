@@ -53,11 +53,6 @@
                 <version>0.0.8</version>
                 <configuration>
                     <mainClass>app.Main</mainClass>
-                    <executable>/usr/bin/java</executable>
-                    <jvmArgs>
-                        <jvmArg>--enable-native-access=javafx.graphics</jvmArg>
-                        <jvmArg>-Djava.library.path=/usr/local/lib</jvmArg>
-                    </jvmArgs>
                 </configuration>
             </plugin>
         </plugins>
