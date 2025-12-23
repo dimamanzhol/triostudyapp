@@ -1,7 +1,6 @@
+services/DataManager.class
+controllers/CalloutSelectionController$1.class
+services/TimerService.class
 models/StudySession.class
 app/Main.class
-services/DataManager.class
 models/Task.class
-controllers/MainController.class
-services/TimerService.class
-controllers/MainController$TaskListCell.class

@@ -18,6 +18,8 @@ import java.util.List;
 public class CalloutSelectionController {
     private Dialog<SessionType> dialog;
     private SessionType selectedSessionType;
+    private VBox workCard;
+    private VBox studyCard;
 
     public CalloutSelectionController(DataManager dataManager) {
         createDialog(dataManager);
@@ -67,8 +69,8 @@ public class CalloutSelectionController {
         HBox cardsContainer = new HBox(20);
         cardsContainer.setAlignment(Pos.CENTER);
 
-        VBox workCard = createSessionCard(SessionType.WORK, dataManager);
-        VBox studyCard = createSessionCard(SessionType.STUDY, dataManager);
+        workCard = createSessionCard(SessionType.WORK, dataManager);
+        studyCard = createSessionCard(SessionType.STUDY, dataManager);
 
         cardsContainer.getChildren().addAll(workCard, studyCard);
 

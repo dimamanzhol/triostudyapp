@@ -1,6 +1,11 @@
-/Users/dinmukhamed/Documents/triostudyapp/src/main/java/services/DataManager.java
-/Users/dinmukhamed/Documents/triostudyapp/src/main/java/controllers/MainController.java
-/Users/dinmukhamed/Documents/triostudyapp/src/main/java/models/StudySession.java
-/Users/dinmukhamed/Documents/triostudyapp/src/main/java/services/TimerService.java
-/Users/dinmukhamed/Documents/triostudyapp/src/main/java/app/Main.java
-/Users/dinmukhamed/Documents/triostudyapp/src/main/java/models/Task.java
+/Users/dinmukhamed/triostudyapp/src/main/java/models/StudySession.java
+/Users/dinmukhamed/triostudyapp/src/main/java/services/LocalStorage.java
+/Users/dinmukhamed/triostudyapp/src/main/java/models/TaskType.java
+/Users/dinmukhamed/triostudyapp/src/main/java/app/Main.java
+/Users/dinmukhamed/triostudyapp/src/main/java/services/DataManager.java
+/Users/dinmukhamed/triostudyapp/src/main/java/controllers/CalloutSelectionController.java
+/Users/dinmukhamed/triostudyapp/src/main/java/models/SessionConfiguration.java
+/Users/dinmukhamed/triostudyapp/src/main/java/services/TimerService.java
+/Users/dinmukhamed/triostudyapp/src/main/java/models/Task.java
+/Users/dinmukhamed/triostudyapp/src/main/java/models/SessionType.java
+/Users/dinmukhamed/triostudyapp/src/main/java/controllers/MainController.java

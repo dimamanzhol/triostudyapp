@@ -19,6 +19,8 @@ import services.DataManager;
 import services.TimerService;
 import org.json.JSONObject;
 
+import java.util.List;
+
 public class MainController {
     private final DataManager dataManager;
     private final TimerService timerService;
@@ -36,10 +38,14 @@ public class MainController {
 
     private ListView<Task> taskListView;
     private TextField taskTitleField;
+    private TextField estimatedTimeField;
     private Button addTaskButton;
+    private ComboBox<String> filterComboBox;
+    private ComboBox<String> sortComboBox;
 
     private Label statsLabel;
     private Label currentTaskLabel; // NEW: Shows which task is currently active
+    private Label taskStatsLabel; // NEW: Task statistics
 
     private Task activeTask = null; // NEW: Currently focused task
     private boolean isDarkMode = false; // NEW: Theme state
@@ -151,43 +157,246 @@ public class MainController {
         tasksSection = new VBox(10);
         tasksSection.getStyleClass().add("tasks-section");
 
+        // Header with title and filter/sort controls
+        HBox headerBox = new HBox(10);
+        headerBox.setAlignment(Pos.CENTER_LEFT);
+        headerBox.setSpacing(15);
+
         Label tasksTitle = new Label("Tasks");
         tasksTitle.getStyleClass().add("section-title");
+
+        // Filter dropdown
+        filterComboBox = new ComboBox<>();
+        filterComboBox.getItems().addAll("All Tasks", "Active", "Completed");
+        filterComboBox.setValue("All Tasks");
+        filterComboBox.getStyleClass().add("filter-combo");
+        filterComboBox.setOnAction(e -> applyFiltersAndSort());
+
+        // Sort dropdown
+        sortComboBox = new ComboBox<>();
+        sortComboBox.getItems().addAll("Newest First", "Oldest First", "Name A-Z", "Name Z-A", "Time Spent", "Progress");
+        sortComboBox.setValue("Newest First");
+        sortComboBox.getStyleClass().add("sort-combo");
+        sortComboBox.setOnAction(e -> applyFiltersAndSort());
+
+        headerBox.getChildren().addAll(tasksTitle, filterComboBox, sortComboBox);
+
+        // Enhanced add task box with time estimation
+        VBox addTaskContainer = new VBox(8);
+        addTaskContainer.getStyleClass().add("add-task-container");
 
         HBox addTaskBox = new HBox(10);
         addTaskBox.setAlignment(Pos.CENTER_LEFT);
 
         taskTitleField = new TextField();
         taskTitleField.setPromptText("Enter new task...");
-        taskTitleField.setPrefWidth(250);
+        taskTitleField.setPrefWidth(280);
+
+        estimatedTimeField = new TextField();
+        estimatedTimeField.setPromptText("Est. min");
+        estimatedTimeField.setPrefWidth(80);
 
         addTaskButton = new Button("Add Task");
         addTaskButton.setOnAction(e -> addTask());
         addTaskButton.getStyleClass().add("add-button");
 
-        addTaskBox.getChildren().addAll(taskTitleField, addTaskButton);
+        addTaskBox.getChildren().addAll(taskTitleField, estimatedTimeField, addTaskButton);
+
+        // Task statistics label
+        taskStatsLabel = new Label();
+        taskStatsLabel.getStyleClass().add("task-stats-label");
+        updateTaskStats();
+
+        addTaskContainer.getChildren().addAll(addTaskBox, taskStatsLabel);
 
         taskListView = new ListView<>();
-        taskListView.setPrefHeight(200);
-        taskListView.setCellFactory(param -> new TaskListCell());
+        taskListView.setPrefHeight(300);
+        taskListView.setCellFactory(param -> new EnhancedTaskListCell());
+
+        // Double-click to edit
+        taskListView.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2) {
+                Task selectedTask = taskListView.getSelectionModel().getSelectedItem();
+                if (selectedTask != null) {
+                    showEditTaskDialog(selectedTask);
+                }
+            }
+        });
 
         loadTasks();
 
-        tasksSection.getChildren().addAll(tasksTitle, addTaskBox, taskListView);
+        tasksSection.getChildren().addAll(headerBox, addTaskContainer, taskListView);
     }
 
     private void addTask() {
         String title = taskTitleField.getText().trim();
         if (!title.isEmpty()) {
-            Task task = new Task(title, "");
+            // Parse estimated time
+            int estimatedMinutes = 0;
+            String estTimeText = estimatedTimeField.getText().trim();
+            if (!estTimeText.isEmpty()) {
+                try {
+                    estimatedMinutes = Integer.parseInt(estTimeText);
+                } catch (NumberFormatException e) {
+                    // Invalid input, use 0
+                }
+            }
+
+            Task task = new Task(title, "", estimatedMinutes);
             dataManager.addTask(task);
             taskTitleField.clear();
+            estimatedTimeField.clear();
             loadTasks();
+            updateTaskStats();
+            updateStats();
         }
     }
 
     private void loadTasks() {
-        taskListView.getItems().setAll(dataManager.getTasks());
+        applyFiltersAndSort();
+    }
+
+    private void applyFiltersAndSort() {
+        List<Task> tasks = new java.util.ArrayList<>(dataManager.getTasks());
+
+        // Apply filter
+        String filter = filterComboBox.getValue();
+        if (filter != null) {
+            switch (filter) {
+                case "Active":
+                    tasks.removeIf(Task::isCompleted);
+                    break;
+                case "Completed":
+                    tasks.removeIf(task -> !task.isCompleted());
+                    break;
+            }
+        }
+
+        // Apply sort
+        String sort = sortComboBox.getValue();
+        if (sort != null) {
+            switch (sort) {
+                case "Newest First":
+                    tasks.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+                    break;
+                case "Oldest First":
+                    tasks.sort((a, b) -> a.getCreatedAt().compareTo(b.getCreatedAt()));
+                    break;
+                case "Name A-Z":
+                    tasks.sort((a, b) -> a.getTitle().compareToIgnoreCase(b.getTitle()));
+                    break;
+                case "Name Z-A":
+                    tasks.sort((a, b) -> b.getTitle().compareToIgnoreCase(a.getTitle()));
+                    break;
+                case "Time Spent":
+                    tasks.sort((a, b) -> Integer.compare(b.getTotalTimeSpent(), a.getTotalTimeSpent()));
+                    break;
+                case "Progress":
+                    tasks.sort((a, b) -> Double.compare(b.getProgressPercentage(), a.getProgressPercentage()));
+                    break;
+            }
+        }
+
+        taskListView.getItems().setAll(tasks);
+    }
+
+    private void updateTaskStats() {
+        int totalTasks = dataManager.getTasks().size();
+        int activeTasks = (int) dataManager.getTasks().stream().filter(t -> !t.isCompleted()).count();
+        int completedTasks = totalTasks - activeTasks;
+
+        int totalEstimated = dataManager.getTasks().stream().mapToInt(Task::getEstimatedTime).sum();
+        int totalSpent = dataManager.getTasks().stream().mapToInt(Task::getTotalTimeSpent).sum();
+
+        String statsText = String.format("%d total | %d active | %d completed | %d/%d min spent",
+                totalTasks, activeTasks, completedTasks, totalSpent, totalEstimated);
+        taskStatsLabel.setText(statsText);
+    }
+
+    private void showEditTaskDialog(Task task) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Edit Task");
+        dialog.setHeaderText("Edit task: " + task.getTitle());
+
+        // Set dialog button types
+        ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+        ButtonType deleteButtonType = new ButtonType("Delete", ButtonBar.ButtonData.OTHER);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, deleteButtonType, ButtonType.CANCEL);
+
+        // Create form
+        VBox form = new VBox(15);
+        form.setPadding(new Insets(20));
+
+        TextField titleField = new TextField(task.getTitle());
+        titleField.setPromptText("Task title");
+        titleField.setPrefWidth(300);
+
+        TextArea descArea = new TextArea(task.getDescription());
+        descArea.setPromptText("Description (optional)");
+        descArea.setPrefWidth(300);
+        descArea.setPrefRowCount(3);
+
+        TextField estTimeField = new TextField(String.valueOf(task.getEstimatedTime()));
+        estTimeField.setPromptText("Estimated time (minutes)");
+
+        form.getChildren().addAll(
+                new Label("Title:"),
+                titleField,
+                new Label("Description:"),
+                descArea,
+                new Label("Estimated Time (minutes):"),
+                estTimeField
+        );
+
+        dialog.getDialogPane().setContent(form);
+
+        // Handle save
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                String newTitle = titleField.getText().trim();
+                if (!newTitle.isEmpty()) {
+                    task.setTitle(newTitle);
+                    task.setDescription(descArea.getText().trim());
+
+                    try {
+                        int estTime = Integer.parseInt(estTimeField.getText().trim());
+                        task.setEstimatedTime(estTime);
+                    } catch (NumberFormatException e) {
+                        // Keep existing value
+                    }
+
+                    dataManager.updateTask(task);
+                    loadTasks();
+                    updateTaskStats();
+                    taskListView.refresh();
+                }
+            } else if (dialogButton == deleteButtonType) {
+                // Confirm deletion
+                Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+                confirmAlert.setTitle("Delete Task");
+                confirmAlert.setHeaderText("Delete \"" + task.getTitle() + "\"?");
+                confirmAlert.setContentText("This action cannot be undone.");
+
+                confirmAlert.showAndWait().ifPresent(response -> {
+                    if (response == ButtonType.OK) {
+                        dataManager.removeTask(task);
+                        loadTasks();
+                        updateTaskStats();
+                        updateStats();
+                    }
+                });
+            }
+            return null;
+        });
+
+        // Apply theme to dialog
+        if (isDarkMode) {
+            dialog.getDialogPane().getScene().getStylesheets().add(
+                    getClass().getResource("/css/styles.css").toExternalForm());
+            dialog.getDialogPane().getStyleClass().add("dark");
+        }
+
+        dialog.showAndWait();
     }
 
     private void updateStats() {
@@ -301,6 +510,10 @@ public class MainController {
             resetButton.getStyleClass().add("dark");
             addTaskButton.getStyleClass().add("dark");
             taskTitleField.getStyleClass().add("dark");
+            if (estimatedTimeField != null) estimatedTimeField.getStyleClass().add("dark");
+            if (filterComboBox != null) filterComboBox.getStyleClass().add("dark");
+            if (sortComboBox != null) sortComboBox.getStyleClass().add("dark");
+            if (taskStatsLabel != null) taskStatsLabel.getStyleClass().add("dark");
             taskListView.getStyleClass().add("dark");
             if (themeToggleButton != null) {
                 themeToggleButton.getStyleClass().add("dark");
@@ -325,6 +538,10 @@ public class MainController {
             resetButton.getStyleClass().remove("dark");
             addTaskButton.getStyleClass().remove("dark");
             taskTitleField.getStyleClass().remove("dark");
+            if (estimatedTimeField != null) estimatedTimeField.getStyleClass().remove("dark");
+            if (filterComboBox != null) filterComboBox.getStyleClass().remove("dark");
+            if (sortComboBox != null) sortComboBox.getStyleClass().remove("dark");
+            if (taskStatsLabel != null) taskStatsLabel.getStyleClass().remove("dark");
             taskListView.getStyleClass().remove("dark");
             if (themeToggleButton != null) {
                 themeToggleButton.getStyleClass().remove("dark");
@@ -366,7 +583,7 @@ public class MainController {
         }
     }
 
-    private class TaskListCell extends ListCell<Task> {
+    private class EnhancedTaskListCell extends ListCell<Task> {
         private HBox content;
         private CheckBox checkBox;
         private Label titleLabel;
@@ -375,7 +592,7 @@ public class MainController {
         private Label timeLabel; // NEW: Shows time spent
         private Circle activeIndicator; // NEW: Shows if task is active
 
-        public TaskListCell() {
+        public EnhancedTaskListCell() {
             super();
             checkBox = new CheckBox();
             titleLabel = new Label();
